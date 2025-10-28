@@ -67,6 +67,8 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
@@ -171,6 +173,17 @@ fun MapScreen() {
                     scope.launch {
                         val meters = (MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude) * 1000).toInt()
                         Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+
+                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                            val origin = LatLng(loc.latitude, loc.longitude)
+                            val key = MapUtils.getMapsApiKey(context)
+                            if (key != null) {
+                                val pts = withContext(Dispatchers.IO) { MapUtils.getDirections(origin, position, key) }
+                                pts?.let { mapViewModel.setRoute(it) }
+                            } else {
+                                Toast.makeText(context, "Missing API Key", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
             }
@@ -189,8 +202,12 @@ fun MapScreen() {
                     snippet = m.snippet
                 )
             }
-            if (ui.userPathPoints.isNotEmpty()) Polyline(points = ui.userPathPoints, color = Color(0xFF00897B))
-            if (ui.routePoints.isNotEmpty()) Polyline(points = ui.routePoints, color = Color.Blue)
+            if (ui.routePoints.isNotEmpty()) {
+                Polyline(points = ui.routePoints, color = Color.Blue, width = 8f)
+            }
+            if (ui.userPathPoints.isNotEmpty()) {
+                Polyline(points = ui.userPathPoints, color = if (ui.useAltPathColor) Color.Red else Color(0xFF00897B), width = 6f)
+            }
         }
 
         TextField(
@@ -218,8 +235,16 @@ fun MapScreen() {
                                 mapViewModel.addMarker(found, title, ui.place)
                                 scope.launch {
                                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(found, 15f))
-                                    val meters = (MapUtils.distance(loc.latitude, loc.longitude, found.latitude, found.longitude) * 1000).toInt()
-                                    Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+                                    if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                                        val origin = LatLng(loc.latitude, loc.longitude)
+                                        val key = MapUtils.getMapsApiKey(context)
+                                        if (key != null) {
+                                            val pts = withContext(Dispatchers.IO) { MapUtils.getDirections(origin, found, key) }
+                                            pts?.let { mapViewModel.setRoute(it) }
+                                        } else {
+                                            Toast.makeText(context, "Missing API Key", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -269,6 +294,17 @@ fun MapScreen() {
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
         ) {
             Text("Show Path", color = Color.White)
+        }
+
+        Button(
+            onClick = {
+                if (ui.userPathPoints.isEmpty()) mapViewModel.loadUserPath(context)
+                mapViewModel.toggleUserPathColor()
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3949AB))
+        ) {
+            Text("Color User Path", color = Color.White)
         }
     }
 }

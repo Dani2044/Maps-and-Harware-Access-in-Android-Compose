@@ -8,5 +8,6 @@ data class MapUIState(
     val showCurrentMarker: Boolean = false,
     val routePoints: List<LatLng> = emptyList(),
     val userPathPoints: List<LatLng> = emptyList(),
-    val darkMode: Boolean = false
+    val darkMode: Boolean = false,
+    val useAltPathColor: Boolean = false
 )
