@@ -168,8 +168,10 @@ fun MapScreen() {
                 MapUtils.findAddress(context, position) { address ->
                     val title = address ?: "${position.latitude}, ${position.longitude}"
                     mapViewModel.addMarker(position, title)
-                    val d = MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude)
-                    Toast.makeText(context, "${address ?: "Unknown"}\nDist: ${(d * 1000).toInt()} m", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        val meters = (MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude) * 1000).toInt()
+                        Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         ) {
@@ -214,7 +216,11 @@ fun MapScreen() {
                             MapUtils.findAddress(context, found) { address ->
                                 val title = address ?: ui.place
                                 mapViewModel.addMarker(found, title, ui.place)
-                                scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(found, 15f)) }
+                                scope.launch {
+                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(found, 15f))
+                                    val meters = (MapUtils.distance(loc.latitude, loc.longitude, found.latitude, found.longitude) * 1000).toInt()
+                                    Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         } else {
                             Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
