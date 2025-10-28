@@ -242,9 +242,20 @@ fun MapScreen() {
                                     val title = address ?: ui.place
                                     mapViewModel.addMarker(found, title, ui.place)
                                     scope.launch {
+                                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                                            val meters = (MapUtils.distance(
+                                                loc.latitude, loc.longitude,
+                                                found.latitude, found.longitude
+                                            ) * 1000).toInt()
+                                            Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, title, Toast.LENGTH_SHORT).show()
+                                        }
+
                                         cameraPositionState.animate(
                                             CameraUpdateFactory.newLatLngZoom(found, 15f)
                                         )
+
                                         if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                                             val origin = LatLng(loc.latitude, loc.longitude)
                                             val key = MapUtils.getMapsApiKey(context)
