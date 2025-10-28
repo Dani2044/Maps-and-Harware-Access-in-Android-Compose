@@ -1,8 +1,16 @@
 package com.example.taller2.map
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
+import android.os.Looper
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -22,12 +31,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.taller2.R
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -49,23 +68,6 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.os.Looper
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
@@ -80,8 +82,6 @@ fun MapScreen() {
         position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 3f)
     }
     val scope = rememberCoroutineScope()
-
-    var pinned by rememberSaveable { mutableStateOf(false) }
 
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
     val locationRequest = remember {
@@ -158,16 +158,19 @@ fun MapScreen() {
             )
         }
     }
-    LaunchedEffect(ui.searchMarker) {
-        ui.searchMarker?.let { scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 14f)) } }
-    }
-    LaunchedEffect(ui.longClickMarker) {
-        ui.longClickMarker?.let { scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 14f)) } }
-    }
 
     val lightMap = runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map) }.getOrNull()
     val darkMap  = runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map) }.getOrNull()
     val currentStyle = remember(ui.darkMode, lightMap, darkMap) { if (ui.darkMode) darkMap else lightMap }
+
+    var uiSettings by remember {
+        mutableStateOf(
+            MapUiSettings(
+                zoomControlsEnabled = true,
+                compassEnabled = true
+            )
+        )
+    }
 
     val hasFineNow = ContextCompat.checkSelfPermission(
         context, Manifest.permission.ACCESS_FINE_LOCATION
@@ -177,10 +180,10 @@ fun MapScreen() {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            uiSettings = MapUiSettings(zoomControlsEnabled = true, compassEnabled = true),
+            uiSettings = uiSettings,
             properties = MapProperties(mapStyleOptions = currentStyle, isMyLocationEnabled = hasFineNow),
             onMapLongClick = { position ->
-                mapViewModel.setLongClickMarker(position)
+                mapViewModel.addMarker(position, "Long Click", "")
                 MapUtils.findAddress(context, position) { address ->
                     val d = MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude)
                     Toast.makeText(context, "${address ?: "Unknown"}\nDist: ${(d * 1000).toInt()} m", Toast.LENGTH_SHORT).show()
@@ -190,11 +193,17 @@ fun MapScreen() {
             if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                 Marker(
                     state = rememberUpdatedMarkerState(position = LatLng(loc.latitude, loc.longitude)),
-                    title = "Current Location"
+                    title = "Current Location",
+                    visible = ui.showCurrentMarker
                 )
             }
-            ui.searchMarker?.let { Marker(state = rememberUpdatedMarkerState(position = it), title = "Search Result") }
-            ui.longClickMarker?.let { Marker(state = rememberUpdatedMarkerState(position = it), title = "Long Click") }
+            ui.markers.forEach { m ->
+                Marker(
+                    state = rememberUpdatedMarkerState(position = m.position),
+                    title = m.title,
+                    snippet = m.snippet
+                )
+            }
             if (ui.userPathPoints.isNotEmpty()) Polyline(points = ui.userPathPoints, color = Color(0xFF00897B))
             if (ui.routePoints.isNotEmpty())    Polyline(points = ui.routePoints, color = Color.Blue)
         }
@@ -203,16 +212,30 @@ fun MapScreen() {
             value = ui.place,
             onValueChange = { mapViewModel.setPlace(it) },
             label = { Text("Address") },
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 48.dp, end = 16.dp),
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0x33FFFFFF),
+                unfocusedContainerColor = Color(0x22FFFFFF),
+                focusedLabelColor = Color.White,
+                unfocusedLabelColor = Color.White,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(
                 onSearch = {
                     MapUtils.findLocation(context, ui.place) { found ->
                         if (found != null) {
-                            mapViewModel.setSearchMarker(found)
-                            val d = MapUtils.distance(loc.latitude, loc.longitude, found.latitude, found.longitude)
-                            Toast.makeText(context, "Distance: ${(d * 1000).toInt()} m", Toast.LENGTH_SHORT).show()
+                            mapViewModel.addMarker(found, "Search Result", ui.place)
+                            scope.launch {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(found, 15f)
+                                )
+                            }
                         } else {
                             Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
                         }
@@ -231,30 +254,30 @@ fun MapScreen() {
                 onClick = {
                     val lat = loc.latitude
                     val lon = loc.longitude
-                    if (pinned) {
-                        Toast.makeText(context, "Already pinned", Toast.LENGTH_SHORT).show()
-                    } else if (lat != 0.0 || lon != 0.0) {
-                        val here = LatLng(lat, lon)
-                        mapViewModel.setSearchMarker(here)
-                        scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f)) }
-                        pinned = true
-                    } else {
+                    if (lat == 0.0 && lon == 0.0) {
                         Toast.makeText(context, "Location not available", Toast.LENGTH_SHORT).show()
+                    } else {
+                        if (!ui.showCurrentMarker) {
+                            mapViewModel.showCurrentMarker()
+                            val here = LatLng(lat, lon)
+                            scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f)) }
+                        } else {
+                            mapViewModel.hideCurrentMarker()
+                        }
                     }
                 },
                 modifier = Modifier.size(56.dp)
             ) {
-                Icon(Icons.Filled.MyLocation, contentDescription = "Mark here", modifier = Modifier.size(32.dp))
+                Icon(Icons.Filled.MyLocation, contentDescription = "Toggle current marker", modifier = Modifier.size(32.dp))
             }
 
             IconButton(
                 onClick = {
-                    mapViewModel.clearOverlays()
-                    pinned = false
+                    mapViewModel.clearMarkers()
                 },
                 modifier = Modifier.size(56.dp)
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = "Clear", modifier = Modifier.size(32.dp))
+                Icon(Icons.Filled.Delete, contentDescription = "Clear map", modifier = Modifier.size(32.dp))
             }
         }
 

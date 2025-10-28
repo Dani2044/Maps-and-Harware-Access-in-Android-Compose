@@ -8,5 +8,7 @@ data class MapUIState(
     val longClickMarker: LatLng? = null,
     val routePoints: List<LatLng> = emptyList(),
     val userPathPoints: List<LatLng> = emptyList(),
-    val darkMode: Boolean = false
+    val darkMode: Boolean = false,
+    val markers: List<MyMarker> = emptyList(),
+    val showCurrentMarker: Boolean = false
 )

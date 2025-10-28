@@ -11,31 +11,25 @@ class MapViewModel : ViewModel() {
     val uIVar = MutableStateFlow(MapUIState())
     val uI: StateFlow<MapUIState> = uIVar
 
-    fun setPlace(value: String) = uIVar.update {
-        it.copy(place = value)
-    }
-    fun setSearchMarker(p: LatLng?) = uIVar.update {
-        it.copy(searchMarker = p)
-    }
-    fun setLongClickMarker(p: LatLng?) = uIVar.update {
-        it.copy(longClickMarker = p)
-    }
-    fun setRoute(points: List<LatLng>) = uIVar.update {
-        it.copy(routePoints = points)
-    }
-    fun clearOverlays() = uIVar.update {
+    fun setPlace(value: String) = uIVar.update { it.copy(place = value) }
+    fun setSearchMarker(p: LatLng?) = uIVar.update { it.copy(searchMarker = p) }
+    fun setLongClickMarker(p: LatLng?) = uIVar.update { it.copy(longClickMarker = p) }
+    fun setRoute(points: List<LatLng>) = uIVar.update { it.copy(routePoints = points) }
+    fun loadUserPath(ctx: Context) = uIVar.update { it.copy(userPathPoints = MapUtils.readLocationsFromFile(ctx)) }
+    fun setDarkMode(isDark: Boolean) = uIVar.update { it.copy(darkMode = isDark) }
+
+    fun addMarker(position: LatLng, title: String = "Marker", snippet: String = "") =
+        uIVar.update { it.copy(markers = it.markers + MyMarker(position, title, snippet)) }
+
+    fun clearMarkers() = uIVar.update {
         it.copy(
-            place = "",
+            markers = emptyList(),
             searchMarker = null,
-            longClickMarker = null,
-            routePoints = emptyList(),
-            userPathPoints = emptyList()
+            longClickMarker = null
         )
     }
-    fun loadUserPath(ctx: Context) = uIVar.update {
-        it.copy(userPathPoints = MapUtils.readLocationsFromFile(ctx))
-    }
-    fun setDarkMode(isDark: Boolean) = uIVar.update {
-        it.copy(darkMode = isDark)
-    }
+
+    fun showCurrentMarker() = uIVar.update { it.copy(showCurrentMarker = true) }
+    fun hideCurrentMarker() = uIVar.update { it.copy(showCurrentMarker = false) }
+    fun toggleCurrentMarker() = uIVar.update { it.copy(showCurrentMarker = !it.showCurrentMarker) }
 }
