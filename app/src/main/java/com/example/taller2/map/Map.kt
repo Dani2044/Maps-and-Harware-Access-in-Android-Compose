@@ -15,8 +15,11 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -173,7 +176,6 @@ fun MapScreen() {
                     scope.launch {
                         val meters = (MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude) * 1000).toInt()
                         Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
-
                         if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                             val origin = LatLng(loc.latitude, loc.longitude)
                             val key = MapUtils.getMapsApiKey(context)
@@ -210,53 +212,92 @@ fun MapScreen() {
             }
         }
 
-        TextField(
-            value = ui.place,
-            onValueChange = { mapViewModel.setPlace(it) },
-            label = { Text("Address") },
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 48.dp, end = 16.dp),
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0x33FFFFFF),
-                unfocusedContainerColor = Color(0x22FFFFFF),
-                focusedLabelColor = Color.White,
-                unfocusedLabelColor = Color.White,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(
-                onSearch = {
-                    MapUtils.findLocation(context, ui.place) { found ->
-                        if (found != null) {
-                            MapUtils.findAddress(context, found) { address ->
-                                val title = address ?: ui.place
-                                mapViewModel.addMarker(found, title, ui.place)
-                                scope.launch {
-                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(found, 15f))
-                                    if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-                                        val origin = LatLng(loc.latitude, loc.longitude)
-                                        val key = MapUtils.getMapsApiKey(context)
-                                        if (key != null) {
-                                            val pts = withContext(Dispatchers.IO) { MapUtils.getDirections(origin, found, key) }
-                                            pts?.let { mapViewModel.setRoute(it) }
-                                        } else {
-                                            Toast.makeText(context, "Missing API Key", Toast.LENGTH_SHORT).show()
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 48.dp, end = 16.dp)
+        ) {
+            TextField(
+                value = ui.place,
+                onValueChange = { mapViewModel.setPlace(it) },
+                label = { Text("Address") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0x33FFFFFF),
+                    unfocusedContainerColor = Color(0x22FFFFFF),
+                    focusedLabelColor = Color.White,
+                    unfocusedLabelColor = Color.White,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        MapUtils.findLocation(context, ui.place) { found ->
+                            if (found != null) {
+                                MapUtils.findAddress(context, found) { address ->
+                                    val title = address ?: ui.place
+                                    mapViewModel.addMarker(found, title, ui.place)
+                                    scope.launch {
+                                        cameraPositionState.animate(
+                                            CameraUpdateFactory.newLatLngZoom(found, 15f)
+                                        )
+                                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                                            val origin = LatLng(loc.latitude, loc.longitude)
+                                            val key = MapUtils.getMapsApiKey(context)
+                                            if (key != null) {
+                                                val pts = withContext(Dispatchers.IO) {
+                                                    MapUtils.getDirections(origin, found, key)
+                                                }
+                                                pts?.let { mapViewModel.setRoute(it) }
+                                            } else {
+                                                Toast.makeText(context, "Missing API Key", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
                                 }
+                            } else {
+                                Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
                             }
-                        } else {
-                            Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }
+                )
             )
-        )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { mapViewModel.loadUserPath(context) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
+                ) {
+                    Text("Show Path", color = Color.White)
+                }
+
+                Button(
+                    onClick = {
+                        if (ui.userPathPoints.isEmpty()) mapViewModel.loadUserPath(context)
+                        mapViewModel.toggleUserPathColor()
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3949AB))
+                ) {
+                    Text("Color User Path", color = Color.White)
+                }
+            }
+        }
 
         Column(
-            modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             IconButton(
@@ -286,25 +327,6 @@ fun MapScreen() {
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = "Clear map", modifier = Modifier.size(32.dp))
             }
-        }
-
-        Button(
-            onClick = { mapViewModel.loadUserPath(context) },
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
-        ) {
-            Text("Show Path", color = Color.White)
-        }
-
-        Button(
-            onClick = {
-                if (ui.userPathPoints.isEmpty()) mapViewModel.loadUserPath(context)
-                mapViewModel.toggleUserPathColor()
-            },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3949AB))
-        ) {
-            Text("Color User Path", color = Color.White)
         }
     }
 }
