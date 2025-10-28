@@ -40,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,9 +77,7 @@ fun MapScreen() {
     val locationViewModel: LocationViewModel = viewModel()
     val loc by locationViewModel.state.collectAsState()
 
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 3f)
-    }
+    val cameraPositionState = rememberCameraPositionState { position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 3f) }
     val scope = rememberCoroutineScope()
 
     val fused = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -127,15 +124,9 @@ fun MapScreen() {
         }
     }
 
-    val hasFine = ContextCompat.checkSelfPermission(
-        context, Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            fused.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        }
+    val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) fused.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
     LaunchedEffect(Unit) {
         if (!hasFine) launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -151,30 +142,21 @@ fun MapScreen() {
         }
     }
 
+    val currentAddress = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(loc.latitude, loc.longitude) {
         if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 16f)
-            )
+            val here = LatLng(loc.latitude, loc.longitude)
+            MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f))
         }
     }
 
     val lightMap = runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map) }.getOrNull()
-    val darkMap  = runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map) }.getOrNull()
+    val darkMap = runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map) }.getOrNull()
     val currentStyle = remember(ui.darkMode, lightMap, darkMap) { if (ui.darkMode) darkMap else lightMap }
 
-    var uiSettings by remember {
-        mutableStateOf(
-            MapUiSettings(
-                zoomControlsEnabled = true,
-                compassEnabled = true
-            )
-        )
-    }
-
-    val hasFineNow = ContextCompat.checkSelfPermission(
-        context, Manifest.permission.ACCESS_FINE_LOCATION
-    ) == PackageManager.PERMISSION_GRANTED
+    var uiSettings by remember { mutableStateOf(MapUiSettings(zoomControlsEnabled = true, compassEnabled = true)) }
+    val hasFineNow = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     Box(Modifier.fillMaxSize()) {
         GoogleMap(
@@ -183,8 +165,9 @@ fun MapScreen() {
             uiSettings = uiSettings,
             properties = MapProperties(mapStyleOptions = currentStyle, isMyLocationEnabled = hasFineNow),
             onMapLongClick = { position ->
-                mapViewModel.addMarker(position, "Long Click", "")
                 MapUtils.findAddress(context, position) { address ->
+                    val title = address ?: "${position.latitude}, ${position.longitude}"
+                    mapViewModel.addMarker(position, title)
                     val d = MapUtils.distance(loc.latitude, loc.longitude, position.latitude, position.longitude)
                     Toast.makeText(context, "${address ?: "Unknown"}\nDist: ${(d * 1000).toInt()} m", Toast.LENGTH_SHORT).show()
                 }
@@ -193,7 +176,7 @@ fun MapScreen() {
             if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                 Marker(
                     state = rememberUpdatedMarkerState(position = LatLng(loc.latitude, loc.longitude)),
-                    title = "Current Location",
+                    title = currentAddress.value ?: "Current location",
                     visible = ui.showCurrentMarker
                 )
             }
@@ -205,16 +188,14 @@ fun MapScreen() {
                 )
             }
             if (ui.userPathPoints.isNotEmpty()) Polyline(points = ui.userPathPoints, color = Color(0xFF00897B))
-            if (ui.routePoints.isNotEmpty())    Polyline(points = ui.routePoints, color = Color.Blue)
+            if (ui.routePoints.isNotEmpty()) Polyline(points = ui.routePoints, color = Color.Blue)
         }
 
         TextField(
             value = ui.place,
             onValueChange = { mapViewModel.setPlace(it) },
             label = { Text("Address") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 48.dp, end = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 48.dp, end = 16.dp),
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = TextFieldDefaults.colors(
@@ -230,11 +211,10 @@ fun MapScreen() {
                 onSearch = {
                     MapUtils.findLocation(context, ui.place) { found ->
                         if (found != null) {
-                            mapViewModel.addMarker(found, "Search Result", ui.place)
-                            scope.launch {
-                                cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(found, 15f)
-                                )
+                            MapUtils.findAddress(context, found) { address ->
+                                val title = address ?: ui.place
+                                mapViewModel.addMarker(found, title, ui.place)
+                                scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(found, 15f)) }
                             }
                         } else {
                             Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
@@ -245,9 +225,7 @@ fun MapScreen() {
         )
 
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp),
+            modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             IconButton(
@@ -260,6 +238,7 @@ fun MapScreen() {
                         if (!ui.showCurrentMarker) {
                             mapViewModel.showCurrentMarker()
                             val here = LatLng(lat, lon)
+                            MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
                             scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f)) }
                         } else {
                             mapViewModel.hideCurrentMarker()
@@ -270,11 +249,8 @@ fun MapScreen() {
             ) {
                 Icon(Icons.Filled.MyLocation, contentDescription = "Toggle current marker", modifier = Modifier.size(32.dp))
             }
-
             IconButton(
-                onClick = {
-                    mapViewModel.clearMarkers()
-                },
+                onClick = { mapViewModel.clearMarkers() },
                 modifier = Modifier.size(56.dp)
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = "Clear map", modifier = Modifier.size(32.dp))
