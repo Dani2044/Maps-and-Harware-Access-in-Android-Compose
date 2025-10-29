@@ -111,7 +111,8 @@ object MapUtils {
     }
 
     fun getDirections(origin: LatLng, dest: LatLng, apiKey: String): List<LatLng>? {
-        val url = "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${dest.latitude},${dest.longitude}&mode=driving&key=$apiKey"
+        val url =
+            "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${dest.latitude},${dest.longitude}&mode=driving&key=$apiKey"
         val json = URL(url).readText()
         val obj = JSONObject(json)
         val routes = obj.optJSONArray("routes") ?: return null
