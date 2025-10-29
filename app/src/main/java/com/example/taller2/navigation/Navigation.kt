@@ -9,9 +9,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.taller2.camera.CameraScreen
 import com.example.taller2.contacts.ContactsScreen
 import com.example.taller2.home.HomeScreen
-import com.example.taller2.map.LocationViewModel
 import com.example.taller2.map.MapScreen
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun Navigation() {
     val navController = rememberNavController()
