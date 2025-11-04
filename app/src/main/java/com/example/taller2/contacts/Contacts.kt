@@ -39,7 +39,7 @@ fun ContactsScreen() {
     val contentResolver = context.contentResolver
     val contactsPermissionState = rememberPermissionState(Manifest.permission.READ_CONTACTS)
 
-    Column (
+    Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxSize()
@@ -57,8 +57,10 @@ fun ContactsScreen() {
                     fontSize = 20.sp
                 )
                 Button(
-                    onClick = {contactsPermissionState.launchPermissionRequest()},
-                    modifier = Modifier.fillMaxWidth().padding(30.dp)
+                    onClick = { contactsPermissionState.launchPermissionRequest() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(30.dp)
                 ) {
                     Text("Grant Permission")
                 }
@@ -72,8 +74,10 @@ fun ContactsScreen() {
                     fontSize = 20.sp
                 )
                 Button(
-                    onClick = {contactsPermissionState.launchPermissionRequest()},
-                    modifier = Modifier.fillMaxWidth().padding(30.dp)
+                    onClick = { contactsPermissionState.launchPermissionRequest() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(30.dp)
                 ) {
                     Text("Grant Permission")
                 }
@@ -81,30 +85,35 @@ fun ContactsScreen() {
         }
     }
 }
+
 @Composable
 fun DrawContacts(contacts: List<Contact>) {
-    LazyColumn (
+    LazyColumn(
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxSize()
-    ) { items(contacts) { contact ->
-        ElevatedCard {
-            Row (
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(15.dp)
-            ) {
-                Image(
-                    painterResource(R.drawable.contact_icon),
-                    "Contacts",
-                    modifier = Modifier.height(30.dp)
-                )
-                Spacer(modifier = Modifier.width(15.dp))
-                Text(contact.id)
-                Spacer(modifier = Modifier.width(15.dp))
-                Text(contact.name)
+    ) {
+        items(contacts) { contact ->
+            ElevatedCard {
+                Row(
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(15.dp)
+                ) {
+                    Image(
+                        painterResource(R.drawable.contact_icon),
+                        "Contacts",
+                        modifier = Modifier.height(30.dp)
+                    )
+                    Spacer(modifier = Modifier.width(15.dp))
+                    Text(contact.id)
+                    Spacer(modifier = Modifier.width(15.dp))
+                    Text(contact.name)
+                }
             }
         }
-    }}
+    }
 }
 
 fun loadContacts(contentResolver: ContentResolver): List<Contact> {
@@ -126,7 +135,7 @@ fun loadContacts(contentResolver: ContentResolver): List<Contact> {
         val idColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
         val nameColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
 
-        while(cursor.moveToNext()) {
+        while (cursor.moveToNext()) {
             val id = cursor.getString(idColumn)
             val name = cursor.getString(nameColumn)
             contacts.add(Contact(id, name))

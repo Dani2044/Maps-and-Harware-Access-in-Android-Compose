@@ -62,17 +62,13 @@ object MapUtils {
 
     fun readLocationsFromFile(ctx: Context): List<LatLng> {
         val points = mutableListOf<LatLng>()
-        try {
-            val file = File(ctx.filesDir, "locations.json")
-            if (!file.exists()) return points
-            BufferedReader(FileReader(file)).useLines { lines ->
-                lines.forEach { line ->
-                    val obj = JSONObject(line)
-                    points.add(LatLng(obj.getDouble("latitude"), obj.getDouble("longitude")))
-                }
+        val file = File(ctx.filesDir, "locations.json")
+        if (!file.exists()) return points
+        BufferedReader(FileReader(file)).useLines { lines ->
+            lines.forEach { line ->
+                val obj = JSONObject(line)
+                points.add(LatLng(obj.getDouble("latitude"), obj.getDouble("longitude")))
             }
-        } catch (e: Exception) {
-            Log.e("LOCATION", "Error reading file", e)
         }
         return points
     }

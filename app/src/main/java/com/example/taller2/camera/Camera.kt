@@ -49,8 +49,8 @@ fun CameraScreen() {
     )
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
-    ) { it->
-        if(it) {
+    ) { it ->
+        if (it) {
             imageUri = cameraUri
         }
     }
@@ -61,7 +61,9 @@ fun CameraScreen() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             if (imageUri != null) {
@@ -80,17 +82,23 @@ fun CameraScreen() {
         }
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 30.dp)
         ) {
             Button(
-                onClick = {galleryLauncher.launch("image/*")},
-                modifier = Modifier.width(135.dp).height(40.dp)
+                onClick = { galleryLauncher.launch("image/*") },
+                modifier = Modifier
+                    .width(135.dp)
+                    .height(40.dp)
             ) {
                 Text("Gallery")
             }
             Button(
-                onClick = {cameraLauncher.launch(cameraUri)},
-                modifier = Modifier.width(135.dp).height(40.dp)
+                onClick = { cameraLauncher.launch(cameraUri) },
+                modifier = Modifier
+                    .width(135.dp)
+                    .height(40.dp)
             ) {
                 Text("Camera")
             }

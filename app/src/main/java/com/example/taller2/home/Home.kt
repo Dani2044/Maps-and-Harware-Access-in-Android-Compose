@@ -24,7 +24,7 @@ fun HomeScreen(navController: NavController) {
         modifier = Modifier.fillMaxSize()
     ) {
         Button(
-            onClick = {navController.navigate(AppScreens.Contacts.name)},
+            onClick = { navController.navigate(AppScreens.Contacts.name) },
             modifier = Modifier.background(color = Color.Transparent),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
         ) {
@@ -34,7 +34,7 @@ fun HomeScreen(navController: NavController) {
             )
         }
         Button(
-            onClick = {navController.navigate(AppScreens.Camera.name)},
+            onClick = { navController.navigate(AppScreens.Camera.name) },
             modifier = Modifier.background(color = Color.Transparent),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
         ) {
@@ -44,7 +44,7 @@ fun HomeScreen(navController: NavController) {
             )
         }
         Button(
-            onClick = {navController.navigate(AppScreens.Map.name)},
+            onClick = { navController.navigate(AppScreens.Map.name) },
             modifier = Modifier.background(color = Color.Transparent),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
         ) {

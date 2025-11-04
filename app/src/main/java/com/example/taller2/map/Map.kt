@@ -128,6 +128,7 @@ fun MapScreen() {
                     mapViewModel.setDarkMode(lux < 2000f)
                 }
             }
+
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
     }
@@ -162,11 +163,9 @@ fun MapScreen() {
 
     val currentAddress = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(loc.latitude, loc.longitude) {
-        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-            val here = LatLng(loc.latitude, loc.longitude)
-            MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f))
-        }
+        val here = LatLng(loc.latitude, loc.longitude)
+        MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
+        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f))
     }
 
     val lightMap =
@@ -210,32 +209,30 @@ fun MapScreen() {
                             position.latitude,
                             position.longitude
                         ) * 1000).toInt()
-                        Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT)
+                            .show()
 
-                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-                            val origin = LatLng(loc.latitude, loc.longitude)
-                            val pts = withContext(Dispatchers.IO) {
-                                mapViewModel.fetchRoute(origin, position)
-                            }
-                            if (pts.isNotEmpty()) {
-                                mapViewModel.setRoute(pts)
-                            } else {
-                                Toast.makeText(context, "No route found", Toast.LENGTH_SHORT).show()
-                            }
+                        val origin = LatLng(loc.latitude, loc.longitude)
+                        val pts = withContext(Dispatchers.IO) {
+                            mapViewModel.fetchRoute(origin, position)
+                        }
+                        if (pts.isNotEmpty()) {
+                            mapViewModel.setRoute(pts)
+                        } else {
+                            Toast.makeText(context, "No route found", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
             }
         ) {
-            if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-                Marker(
-                    state = rememberUpdatedMarkerState(
-                        position = LatLng(loc.latitude, loc.longitude)
-                    ),
-                    title = currentAddress.value ?: "Current location",
-                    visible = ui.showCurrentMarker
-                )
-            }
+            Marker(
+                state = rememberUpdatedMarkerState(
+                    position = LatLng(loc.latitude, loc.longitude)
+                ),
+                title = currentAddress.value ?: "Current location",
+                visible = ui.showCurrentMarker
+            )
+
             ui.markers.forEach { m ->
                 Marker(
                     state = rememberUpdatedMarkerState(position = m.position),
@@ -292,39 +289,38 @@ fun MapScreen() {
                                     val title = address ?: ui.place
                                     mapViewModel.addMarker(found, title, ui.place)
                                     scope.launch {
-                                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-                                            val meters = (MapUtils.distance(
-                                                loc.latitude, loc.longitude,
-                                                found.latitude, found.longitude
-                                            ) * 1000).toInt()
-                                            Toast.makeText(
-                                                context,
-                                                "$title\nDist: $meters m",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        } else {
-                                            Toast.makeText(context, title, Toast.LENGTH_SHORT).show()
-                                        }
+                                        val meters = (MapUtils.distance(
+                                            loc.latitude, loc.longitude,
+                                            found.latitude, found.longitude
+                                        ) * 1000).toInt()
+                                        Toast.makeText(
+                                            context,
+                                            "$title\nDist: $meters m",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
 
                                         cameraPositionState.animate(
                                             CameraUpdateFactory.newLatLngZoom(found, 15f)
                                         )
 
-                                        if (loc.latitude != 0.0 || loc.longitude != 0.0) {
-                                            val origin = LatLng(loc.latitude, loc.longitude)
-                                            val pts = withContext(Dispatchers.IO) {
-                                                mapViewModel.fetchRoute(origin, found)
-                                            }
-                                            if (pts.isNotEmpty()) {
-                                                mapViewModel.setRoute(pts)
-                                            } else {
-                                                Toast.makeText(context, "No route found", Toast.LENGTH_SHORT).show()
-                                            }
+                                        val origin = LatLng(loc.latitude, loc.longitude)
+                                        val pts = withContext(Dispatchers.IO) {
+                                            mapViewModel.fetchRoute(origin, found)
+                                        }
+                                        if (pts.isNotEmpty()) {
+                                            mapViewModel.setRoute(pts)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "No route found",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
                                 }
                             } else {
-                                Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         }
                     }
