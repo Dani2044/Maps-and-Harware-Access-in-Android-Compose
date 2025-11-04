@@ -1,7 +1,6 @@
 package com.example.taller2.map
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Build
 import android.util.Log
@@ -11,7 +10,6 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,66 +75,5 @@ object MapUtils {
             Log.e("LOCATION", "Error reading file", e)
         }
         return points
-    }
-
-    fun decodePolyline(encoded: String): List<LatLng> {
-        val poly = ArrayList<LatLng>()
-        var index = 0
-        val len = encoded.length
-        var lat = 0
-        var lng = 0
-        while (index < len) {
-            var b: Int
-            var shift = 0
-            var result = 0
-            do {
-                b = encoded[index++].code - 63
-                result = result or ((b and 0x1f) shl shift)
-                shift += 5
-            } while (b >= 0x20)
-            val decodeLat = if ((result and 1) != 0) (result shr 1).inv() else (result shr 1)
-            lat += decodeLat
-            shift = 0
-            result = 0
-            do {
-                b = encoded[index++].code - 63
-                result = result or ((b and 0x1f) shl shift)
-                shift += 5
-            } while (b >= 0x20)
-            val decodeLong = if ((result and 1) != 0) (result shr 1).inv() else (result shr 1)
-            lng += decodeLong
-            poly.add(LatLng(lat / 1E5, lng / 1E5))
-        }
-        return poly
-    }
-
-    fun getDirections(origin: LatLng, dest: LatLng, apiKey: String): List<LatLng>? {
-        val url =
-            "https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${dest.latitude},${dest.longitude}&mode=driving&key=$apiKey"
-        val json = URL(url).readText()
-        val obj = JSONObject(json)
-        val routes = obj.optJSONArray("routes") ?: return null
-        if (routes.length() == 0) return null
-        val poly = routes.getJSONObject(0).getJSONObject("overview_polyline").getString("points")
-        return decodePolyline(poly)
-    }
-
-    fun getMapsApiKey(context: Context): String? {
-        return try {
-            val pm = context.packageManager
-            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getApplicationInfo(
-                    context.packageName,
-                    PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong())
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
-            }
-            appInfo.metaData?.getString("com.google.android.geo.API_KEY")
-        } catch (e: Exception) {
-            Log.e("MAPS", "API key not found in manifest meta-data", e)
-            null
-        }
     }
 }

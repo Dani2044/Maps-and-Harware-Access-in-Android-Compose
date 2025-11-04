@@ -46,8 +46,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -69,8 +69,8 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -128,7 +128,6 @@ fun MapScreen() {
                     mapViewModel.setDarkMode(lux < 2000f)
                 }
             }
-
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
     }
@@ -152,11 +151,7 @@ fun MapScreen() {
         if (hasFine) {
             fused.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
             lightSensor?.let {
-                sensorManager.registerListener(
-                    lightListener,
-                    it,
-                    SensorManager.SENSOR_DELAY_NORMAL
-                )
+                sensorManager.registerListener(lightListener, it, SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
         onDispose {
@@ -177,10 +172,7 @@ fun MapScreen() {
     val lightMap =
         runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map) }.getOrNull()
     val darkMap = runCatching {
-        MapStyleOptions.loadRawResourceStyle(
-            context,
-            R.raw.aubergine_map
-        )
+        MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map)
     }.getOrNull()
     val currentStyle =
         remember(ui.darkMode, lightMap, darkMap) { if (ui.darkMode) darkMap else lightMap }
@@ -218,23 +210,17 @@ fun MapScreen() {
                             position.latitude,
                             position.longitude
                         ) * 1000).toInt()
-                        Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(context, "$title\nDist: $meters m", Toast.LENGTH_SHORT).show()
+
                         if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                             val origin = LatLng(loc.latitude, loc.longitude)
-                            val key = MapUtils.getMapsApiKey(context)
-                            if (key != null) {
-                                val pts = withContext(Dispatchers.IO) {
-                                    MapUtils.getDirections(
-                                        origin,
-                                        position,
-                                        key
-                                    )
-                                }
-                                pts?.let { mapViewModel.setRoute(it) }
+                            val pts = withContext(Dispatchers.IO) {
+                                mapViewModel.fetchRoute(origin, position)
+                            }
+                            if (pts.isNotEmpty()) {
+                                mapViewModel.setRoute(pts)
                             } else {
-                                Toast.makeText(context, "Missing API Key", Toast.LENGTH_SHORT)
-                                    .show()
+                                Toast.makeText(context, "No route found", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -244,10 +230,7 @@ fun MapScreen() {
             if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                 Marker(
                     state = rememberUpdatedMarkerState(
-                        position = LatLng(
-                            loc.latitude,
-                            loc.longitude
-                        )
+                        position = LatLng(loc.latitude, loc.longitude)
                     ),
                     title = currentAddress.value ?: "Current location",
                     visible = ui.showCurrentMarker
@@ -261,12 +244,19 @@ fun MapScreen() {
                 )
             }
             if (ui.routePoints.isNotEmpty()) {
-                Polyline(points = ui.routePoints, color = Color.Blue, width = 8f)
+                Polyline(
+                    points = ui.routePoints,
+                    color = colorResource(id = R.color.blue),
+                    width = 8f
+                )
             }
             if (ui.userPathPoints.isNotEmpty()) {
                 Polyline(
                     points = ui.userPathPoints,
-                    color = if (ui.useAltPathColor) Color.Red else Color(0xFF00897B),
+                    color = if (ui.useAltPathColor)
+                        colorResource(id = R.color.red)
+                    else
+                        colorResource(id = R.color.darkGreen),
                     width = 6f
                 )
             }
@@ -286,12 +276,12 @@ fun MapScreen() {
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0x33FFFFFF),
-                    unfocusedContainerColor = Color(0x22FFFFFF),
-                    focusedLabelColor = Color.White,
-                    unfocusedLabelColor = Color.White,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedContainerColor = colorResource(id = R.color.white33),
+                    unfocusedContainerColor = colorResource(id = R.color.white22),
+                    focusedLabelColor = colorResource(id = R.color.white),
+                    unfocusedLabelColor = colorResource(id = R.color.white),
+                    focusedTextColor = colorResource(id = R.color.white),
+                    unfocusedTextColor = colorResource(id = R.color.white)
                 ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(
@@ -313,8 +303,7 @@ fun MapScreen() {
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         } else {
-                                            Toast.makeText(context, title, Toast.LENGTH_SHORT)
-                                                .show()
+                                            Toast.makeText(context, title, Toast.LENGTH_SHORT).show()
                                         }
 
                                         cameraPositionState.animate(
@@ -323,25 +312,19 @@ fun MapScreen() {
 
                                         if (loc.latitude != 0.0 || loc.longitude != 0.0) {
                                             val origin = LatLng(loc.latitude, loc.longitude)
-                                            val key = MapUtils.getMapsApiKey(context)
-                                            if (key != null) {
-                                                val pts = withContext(Dispatchers.IO) {
-                                                    MapUtils.getDirections(origin, found, key)
-                                                }
-                                                pts?.let { mapViewModel.setRoute(it) }
+                                            val pts = withContext(Dispatchers.IO) {
+                                                mapViewModel.fetchRoute(origin, found)
+                                            }
+                                            if (pts.isNotEmpty()) {
+                                                mapViewModel.setRoute(pts)
                                             } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Missing API Key",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(context, "No route found", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
                                 }
                             } else {
-                                Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT)
-                                    .show()
+                                Toast.makeText(context, "Address not found", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -357,9 +340,11 @@ fun MapScreen() {
                 Button(
                     onClick = { mapViewModel.loadUserPath(context) },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(id = R.color.darkTeal)
+                    )
                 ) {
-                    Text("Show Path", color = Color.White)
+                    Text("Show Path", color = colorResource(id = R.color.white))
                 }
 
                 Button(
@@ -368,9 +353,11 @@ fun MapScreen() {
                         mapViewModel.toggleUserPathColor()
                     },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3949AB))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorResource(id = R.color.indigo)
+                    )
                 ) {
-                    Text("Color User Path", color = Color.White)
+                    Text("Color User Path", color = colorResource(id = R.color.white))
                 }
             }
         }
@@ -394,10 +381,7 @@ fun MapScreen() {
                             MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
                             scope.launch {
                                 cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        here,
-                                        16f
-                                    )
+                                    CameraUpdateFactory.newLatLngZoom(here, 16f)
                                 )
                             }
                         } else {
