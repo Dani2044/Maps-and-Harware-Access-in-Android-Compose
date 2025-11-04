@@ -37,26 +37,21 @@ class MapViewModel : ViewModel() {
     fun setRoute(points: List<LatLng>) = uiVar.update { it.copy(routePoints = points) }
     fun toggleUserPathColor() = uiVar.update { it.copy(useAltPathColor = !it.useAltPathColor) }
     fun fetchRoute(origin: LatLng, destination: LatLng): List<LatLng> {
-        return try {
-            val client = OkHttpClient()
-            val url = "https://router.project-osrm.org/route/v1/driving/" +
-                    "${origin.longitude},${origin.latitude};" +
-                    "${destination.longitude},${destination.latitude}" +
-                    "?overview=full&geometries=polyline"
+        val client = OkHttpClient() //https://square.github.io/okhttp/
+        val url = "https://router.project-osrm.org/route/v1/driving/" +
+                "${origin.longitude},${origin.latitude};" +
+                "${destination.longitude},${destination.latitude}" +
+                "?overview=full&geometries=polyline" //https://project-osrm.org/docs/v5.7.0/api/#requests
 
-            val request = Request.Builder().url(url).build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return emptyList()
+        val request = Request.Builder().url(url).build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: return emptyList()
 
-            val json = JSONObject(body)
-            val routes = json.optJSONArray("routes") ?: return emptyList()
-            if (routes.length() == 0) return emptyList()
+        val json = JSONObject(body)
+        val routes = json.optJSONArray("routes") ?: return emptyList()
+        if (routes.length() == 0) return emptyList()
 
-            val geometry = routes.getJSONObject(0).optString("geometry")
-            if (geometry.isNullOrBlank()) emptyList()
-            else PolyUtil.decode(geometry)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val geometry = routes.getJSONObject(0).optString("geometry")
+        return if (geometry.isNullOrBlank()) emptyList() else PolyUtil.decode(geometry) //https://developers.google.com/maps/documentation/routes/polylinedecoder
     }
 }
