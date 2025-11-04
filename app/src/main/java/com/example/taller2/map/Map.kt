@@ -133,7 +133,7 @@ fun MapScreen() {
         }
     }
 
-    val hasFine = ContextCompat.checkSelfPermission(
+    val locationPermissionCheck = ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
@@ -146,10 +146,10 @@ fun MapScreen() {
             )
         }
     LaunchedEffect(Unit) {
-        if (!hasFine) launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!locationPermissionCheck) launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
-    DisposableEffect(hasFine) {
-        if (hasFine) {
+    DisposableEffect(locationPermissionCheck) {
+        if (locationPermissionCheck) {
             fused.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
             lightSensor?.let {
                 sensorManager.registerListener(lightListener, it, SensorManager.SENSOR_DELAY_NORMAL)
@@ -184,7 +184,7 @@ fun MapScreen() {
             )
         )
     }
-    val hasFineNow = ContextCompat.checkSelfPermission(
+    val locationPermissionCheckNow = ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
@@ -196,7 +196,7 @@ fun MapScreen() {
             uiSettings = uiSettings,
             properties = MapProperties(
                 mapStyleOptions = currentStyle,
-                isMyLocationEnabled = hasFineNow
+                isMyLocationEnabled = locationPermissionCheckNow
             ),
             onMapLongClick = { position ->
                 MapUtils.findAddress(context, position) { address ->
