@@ -58,7 +58,6 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
@@ -165,7 +164,7 @@ fun MapScreen() {
     LaunchedEffect(loc.latitude, loc.longitude) {
         val here = LatLng(loc.latitude, loc.longitude)
         MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
-        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f))
+        cameraPositionState.position = CameraPosition.fromLatLngZoom(here, 16f)
     }
 
     val lightMapStyle = MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map)
@@ -299,9 +298,7 @@ fun MapScreen() {
                                             Toast.LENGTH_SHORT
                                         ).show()
 
-                                        cameraPositionState.animate(
-                                            CameraUpdateFactory.newLatLngZoom(found, 15f)
-                                        )
+                                        cameraPositionState.position = CameraPosition.fromLatLngZoom(found, 15f)
 
                                         val origin = LatLng(loc.latitude, loc.longitude)
                                         val pts = withContext(Dispatchers.IO) {
@@ -372,11 +369,7 @@ fun MapScreen() {
                         mapViewModel.showCurrentMarker()
                         val here = LatLng(lat, lon)
                         MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
-                        scope.launch {
-                            cameraPositionState.animate(
-                                CameraUpdateFactory.newLatLngZoom(here, 16f)
-                            )
-                        }
+                        cameraPositionState.position = CameraPosition.fromLatLngZoom(here, 16f)
                     } else {
                         mapViewModel.hideCurrentMarker()
                     }
