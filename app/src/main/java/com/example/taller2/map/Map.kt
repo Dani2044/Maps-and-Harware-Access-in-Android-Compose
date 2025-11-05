@@ -168,13 +168,13 @@ fun MapScreen() {
         cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(here, 16f))
     }
 
-    val lightMap =
-        runCatching { MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map) }.getOrNull()
-    val darkMap = runCatching {
-        MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map)
-    }.getOrNull()
-    val currentStyle =
-        remember(ui.darkMode, lightMap, darkMap) { if (ui.darkMode) darkMap else lightMap }
+    val lightMapStyle = MapStyleOptions.loadRawResourceStyle(context, R.raw.default_map)
+    val darkMapStyle = MapStyleOptions.loadRawResourceStyle(context, R.raw.aubergine_map)
+    var currentMapStyle by remember { mutableStateOf(lightMapStyle) }
+
+    LaunchedEffect(ui.darkMode) {
+        currentMapStyle = if (ui.darkMode) darkMapStyle else lightMapStyle
+    }
 
     var uiSettings by remember {
         mutableStateOf(
@@ -195,7 +195,7 @@ fun MapScreen() {
             cameraPositionState = cameraPositionState,
             uiSettings = uiSettings,
             properties = MapProperties(
-                mapStyleOptions = currentStyle,
+                mapStyleOptions = currentMapStyle,
                 isMyLocationEnabled = locationPermissionCheckNow
             ),
             onMapLongClick = { position ->
@@ -368,21 +368,17 @@ fun MapScreen() {
                 onClick = {
                     val lat = loc.latitude
                     val lon = loc.longitude
-                    if (lat == 0.0 && lon == 0.0) {
-                        Toast.makeText(context, "Location not available", Toast.LENGTH_SHORT).show()
-                    } else {
-                        if (!ui.showCurrentMarker) {
-                            mapViewModel.showCurrentMarker()
-                            val here = LatLng(lat, lon)
-                            MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
-                            scope.launch {
-                                cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(here, 16f)
-                                )
-                            }
-                        } else {
-                            mapViewModel.hideCurrentMarker()
+                    if (!ui.showCurrentMarker) {
+                        mapViewModel.showCurrentMarker()
+                        val here = LatLng(lat, lon)
+                        MapUtils.findAddress(context, here) { a -> currentAddress.value = a }
+                        scope.launch {
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(here, 16f)
+                            )
                         }
+                    } else {
+                        mapViewModel.hideCurrentMarker()
                     }
                 },
                 modifier = Modifier.size(56.dp)
